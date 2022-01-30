@@ -1,0 +1,52 @@
+---
+- name: Add an Apt signing key, uses whichever key is at the URL
+  ansible.builtin.apt_key:
+    url: https://packages.fluentbit.io/fluentbit.key
+    state: present
+
+- name: Install required packages
+  apt:
+    name:
+      - apt-transport-https
+    install_recommends: no
+    state: present
+
+- name: Add repository
+  ansible.builtin.apt_repository:
+    repo: deb https://packages.fluentbit.io/ubuntu/focal focal main
+    state: present
+    filename: td-agent-bit
+
+- name: Install packages
+  apt:
+    name:
+      - td-agent-bit
+    install_recommends: no
+    state: present
+
+- name: Create DB directory
+  file:
+    path: /var/opt/lib/td-agent-bit
+    state: directory
+    mode: 0750
+    owner: root
+    group: root
+
+- name: Configure
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/td-agent-bit/{{ item }}"
+    owner: root
+    group: root
+    mode: 0644
+  loop:
+    - parsers.conf
+    - plugins.conf
+    - td-agent-bit.conf
+  notify: restart td-agent-bit
+
+- name: Enable and start service
+  service:
+    name: td-agent-bit
+    state: started
+    enabled: yes
